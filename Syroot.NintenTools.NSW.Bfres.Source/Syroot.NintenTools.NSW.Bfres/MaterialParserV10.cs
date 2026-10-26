@@ -128,6 +128,11 @@ public class MaterialParserV10
 		private void SetupOptionBooleans(int count)
 		{
 			OptionToggles = new bool[count];
+			//Materials without shader options have no bit flag array in the file
+			if (_optionBitFlags == null)
+			{
+				_optionBitFlags = new long[Math.Max(1, 1 + (count - 1) / 64)];
+			}
 			long[] array = _optionBitFlags.ToArray();
 			int num = 0;
 			for (int i = 0; i < count; i++)

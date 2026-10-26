@@ -16,6 +16,11 @@ public class SceneAnim : IResData
 
 	private uint UnknownFlags;
 
+	/// <summary>
+	/// True if the camera, light and fog animations of a version 10 file could not be read. They are left out and the file can not be saved.
+	/// </summary>
+	public bool SceneDataUnreadable { get; private set; }
+
 	internal long PosCameraAnimArrayOffset;
 
 	internal long PosCameraAnimDictOffset;
@@ -169,6 +174,25 @@ public class SceneAnim : IResData
 		ushort count2 = loader.ReadUInt16();
 		ushort count3 = loader.ReadUInt16();
 		ushort count4 = loader.ReadUInt16();
+		if (loader.ResFile.VersionMajor2 >= 10 && (count2 + count3 + count4) > 0)
+		{
+			//The camera, light and fog layouts of version 10 (Switch 2) are not known yet. Keep the file loadable and skip them.
+			try
+			{
+				CameraAnims = loader.LoadList<CameraAnim>(count2, value);
+				LightAnims = loader.LoadList<LightAnim>(count3, value2);
+				FogAnims = loader.LoadList<FogAnim>(count4, value3);
+			}
+			catch (System.Exception)
+			{
+				CameraAnims = new List<CameraAnim>();
+				LightAnims = new List<LightAnim>();
+				FogAnims = new List<FogAnim>();
+				SceneDataUnreadable = true;
+			}
+			UserData = loader.LoadList<UserData>(count, value4);
+			return;
+		}
 		CameraAnims = loader.LoadList<CameraAnim>(count2, value);
 		LightAnims = loader.LoadList<LightAnim>(count3, value2);
 		FogAnims = loader.LoadList<FogAnim>(count4, value3);
@@ -177,6 +201,10 @@ public class SceneAnim : IResData
 
 	void IResData.Save(ResFileSaver saver)
 	{
+		if (SceneDataUnreadable)
+		{
+			throw new System.NotSupportedException("The camera, light and fog animations of this version 10 file could not be read, saving would delete them.");
+		}
 		saver.WriteSignature("FSCN");
 		if (saver.ResFile.VersionMajor2 >= 9)
 		{

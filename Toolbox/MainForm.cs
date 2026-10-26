@@ -1565,17 +1565,7 @@ namespace Toolbox
                 string extension = form.GetSelectedExtension();
                 foreach (var file in files)
                 {
-                    IFileFormat fileFormat = null;
-                    try
-                    {
-                        fileFormat = STFileLoader.OpenFileFormat(file);
-                    }
-                    catch (Exception ex)
-                    {
-                        failedFiles.Add($"{file} \n Error:\n {ex} \n");
-                    }
-
-                    SearchFileFormat(form.BatchSettings, fileFormat, extension, outputFolder, ExportMode.Models);
+                    BatchExportFile(form.BatchSettings, file, extension, outputFolder, ExportMode.Models);
                 }
                 batchExportFileList.Clear();
             }
@@ -1612,17 +1602,7 @@ namespace Toolbox
                 string extension = form.GetSelectedExtension();
                 foreach (var file in files)
                 {
-                    IFileFormat fileFormat = null;
-                    try
-                    {
-                         fileFormat = STFileLoader.OpenFileFormat(file);
-                    }
-                    catch (Exception ex)
-                    {
-                        failedFiles.Add($"{file} \n Error:\n {ex} \n");
-                    }
-
-                    SearchFileFormat(form.BatchSettings, fileFormat, extension, outputFolder, ExportMode.Textures);
+                    BatchExportFile(form.BatchSettings, file, extension, outputFolder, ExportMode.Textures);
                 }
                 batchExportFileList.Clear();
             }
@@ -1639,7 +1619,30 @@ namespace Toolbox
                 MessageBox.Show("Files batched successfully!");
         }
 
-        private void SearchFileFormat(BatchFormatExport.Settings settings, IFileFormat fileFormat, 
+        private void BatchExportFile(BatchFormatExport.Settings settings, string file,
+            string extension, string outputFolder, ExportMode exportMode)
+        {
+            IFileFormat fileFormat = null;
+            try
+            {
+                fileFormat = STFileLoader.OpenFileFormat(file);
+                SearchFileFormat(settings, fileFormat, extension, outputFolder, exportMode);
+            }
+            catch (Exception ex)
+            {
+                //One broken file must not stop the rest of the batch
+                failedFiles.Add($"{file} \n Error:\n {ex} \n");
+            }
+            finally
+            {
+                //Every opened file stays in memory (texture containers are kept in static lists) unless it is unloaded,
+                //a few thousand files in a row used up all the RAM and froze the Toolbox
+                try { fileFormat?.Unload(); } catch (Exception) { }
+                GC.Collect();
+            }
+        }
+
+        private void SearchFileFormat(BatchFormatExport.Settings settings, IFileFormat fileFormat,
             string extension, string outputFolder, ExportMode exportMode)
         {
             if (fileFormat == null) return;
