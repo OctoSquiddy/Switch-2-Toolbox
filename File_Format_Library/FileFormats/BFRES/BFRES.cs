@@ -1,22 +1,24 @@
-﻿using System;
+﻿using Bfres.Structs;
+using FirstPlugin.Forms;
+using FirstPlugin.NodeWrappers;
+using GL_EditorFramework.Interfaces;
+using OpenTK;
+using Syroot.NintenTools.NSW.Bfres;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.IO;
 using System.Data;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
 using Toolbox.Library;
+using Toolbox.Library.Animations;
 using Toolbox.Library.Forms;
 using Toolbox.Library.IO;
-using Bfres.Structs;
-using ResU = Syroot.NintenTools.Bfres;
-using Syroot.NintenTools.NSW.Bfres;
-using Toolbox.Library.Animations;
 using Toolbox.Library.NodeWrappers;
-using GL_EditorFramework.Interfaces;
-using FirstPlugin.Forms;
-using FirstPlugin.NodeWrappers;
-using OpenTK;
+using ZeldaLib.IO;
+using ResU = Syroot.NintenTools.Bfres;
 
 namespace FirstPlugin
 {
@@ -847,6 +849,9 @@ namespace FirstPlugin
                     BFRESRender.ResFileNode = this;*/
                 }
             }
+
+            // Upstream's PrepareExternalTextures (Tex\<Texture>.bntx.zs) is replaced by LoadExternalTextures below, which also
+            // handles the Raiders names, the per-model texture lookup and the paths in the settings.
 
             //Mesh codec type of bfres, load textures externallly
             if (externalFlags != (MeshCodec.ExternalFlags)0)

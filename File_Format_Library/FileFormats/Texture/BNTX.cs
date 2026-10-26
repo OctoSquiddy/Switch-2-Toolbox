@@ -1826,6 +1826,8 @@ namespace FirstPlugin
                     target = 0;
             }
 
+            bool isOrin = ParentBNTX.BinaryTexFile.PlatformTarget == "Ounc";
+
             try
             {
                 RedChannel = SetChannel(Texture.ChannelRed);
@@ -1866,7 +1868,7 @@ namespace FirstPlugin
                             TegraX1Swizzle.UseDesktopGobLayout = IsDesktopSwizzleFile(formatSource);
                             try
                             {
-                                result = TegraX1Swizzle.deswizzle(width, height, depth, blkWidth, blkHeight, blkDepth, target, bpp, (uint)Texture.TileMode, (int)Math.Max(0, Texture.BlockHeightLog2 - blockHeightShift), Texture.TextureData[arrayLevel][mipLevel]);
+                                result = TegraX1Swizzle.deswizzle(width, height, depth, blkWidth, blkHeight, blkDepth, target, bpp, (uint)Texture.TileMode, (int)Math.Max(0, Texture.BlockHeightLog2 - blockHeightShift), Texture.TextureData[arrayLevel][mipLevel], isOrin);
                             }
                             finally
                             {
