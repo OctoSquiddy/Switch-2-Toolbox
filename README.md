@@ -1,3 +1,31 @@
+# Switch-Toolbox (Splatoon Raiders / Mario Kart World fork)
+
+This is a fork of [KillzXGaming/Switch-Toolbox](https://github.com/KillzXGaming/Switch-Toolbox). All credit for Switch Toolbox goes to **KillzXGaming** and its contributors. This fork only adds support for the Switch 2 formats used by Splatoon Raiders and Mario Kart World (BFRES version 10, BNTX 0.4.1.x). It is licensed under the same [GNU GPL v3](LICENSE) as the original and the full source is in this repository.
+
+Download the compiled version from the [Releases](../../releases) tab.
+
+## What this fork changes
+
+- BFRES v10 (Switch 2): rigid and smooth skinning, vertex buffer alignment when saving, animation curves (skeletal, material, visibility) read and written in the version 10 layout. Scene animations (light / camera / fog) of version 10 are not readable yet.
+- BNTX 0.4.1.x ("Ounc"): texture swizzle used by the Switch 2 games.
+- Textures stored outside the model are loaded automatically: Splatoon Raiders `Tex\<Package>.<Texture>.bntx.zs`, Mario Kart World `Tex\<Texture>.bntx.zs`. They show up under "External Textures" and are not saved into the BFRES. The `Tex` folder next to the opened `Model` folder is used first, otherwise the paths in Settings > Paths ("Splatoon Raiders", "Mario Kart World").
+- Every model uses its own textures first, so opening several models no longer mixes up textures with the same name.
+- `Toolbox/SwitchToolbox.FbxNative.dll` is rebuilt from `FBX/Native` (older builds failed with "Unable to find an entry point named 'Exp_AddMaterialTexture'").
+- `Syroot.NintenTools.NSW.Bfres.Source` is the decompiled and patched source of the `Syroot.NintenTools.NSW.Bfres.dll` that the Toolbox uses, see the README in that folder.
+
+Not done: v10 materials / shaders, v10 scene animations, shape animations of v10 (none exist in the game files I had), model import through the GUI is untested. See the release notes for details.
+
+## Credits
+
+- [KillzXGaming](https://github.com/KillzXGaming/Switch-Toolbox) and contributors: Switch Toolbox (GPL v3)
+- [Syroot](https://gitlab.com/Syroot/NintenTools) : NintenTools.NSW.Bfres / BinaryData / Maths libraries (MIT)
+- [ScanMountGoat](https://github.com/ScanMountGoat/tegra_swizzle): tegra_swizzle (MIT)
+- Other libraries and their licenses are the same as in the upstream repository.
+
+The original README follows.
+
+---
+
 # Switch-Toolbox
 A tool to edit many formats of Nintendo Switch, 3DS and Wii U. 
 

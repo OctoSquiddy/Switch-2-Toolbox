@@ -274,6 +274,29 @@ namespace Bfres.Structs
             track.EndFrame = curve.EndFrame;
             track.Delta = curve.Delta;
 
+            //Switch 2 (version 10) curves already hold the final values (and slopes for cubic curves)
+            if (curve.IsV10)
+            {
+                track.InterpolationType = curve.CurveType == AnimCurveType.Cubic ? InterpolationType.HERMITE :
+                    curve.CurveType == AnimCurveType.Linear ? InterpolationType.LINEAR : InterpolationType.STEP;
+                for (int i = 0; i < curve.Frames.Length; i++)
+                {
+                    var frame = curve.Frames[i];
+                    if (frame == 0 && track.Keys.Any(x => x.Frame == 0))
+                        track.Keys.RemoveAt(0);
+
+                    float slope = curve.CurveType == AnimCurveType.Cubic ? curve.Keys[i, 1] : 0;
+                    track.Keys.Add(new Animation.KeyFrame()
+                    {
+                        Frame = frame,
+                        Value = curve.Keys[i, 0],
+                        In = slope,
+                        Out = slope,
+                    });
+                }
+                return track;
+            }
+
             float tanscale = curve.Delta;
             if (tanscale == 0)
                 tanscale = 1;

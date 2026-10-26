@@ -332,9 +332,35 @@ namespace Toolbox.Library
                 return MipBlockHeightX86(mipHeightInBytes, blockHeightMip0);
         }
 
+        /// <summary>
+        /// Switch 2 (Ampere) textures use the desktop GPU layout inside each 512 byte GOB.
+        /// It is the Tegra X1 layout with address bits 5 and 6 swapped, so the 32 byte sectors 1 and 2 of every 128 bytes trade places.
+        /// Set this while calling deswizzle/swizzle to work with those textures. The block linear order of the GOBs is the same.
+        /// </summary>
+        [ThreadStatic]
+        public static bool UseDesktopGobLayout;
+
+        public static byte[] SwapDesktopGobSectors(byte[] data)
+        {
+            byte[] result = (byte[])data.Clone();
+            for (int group = 0; group + 128 <= result.Length; group += 128)
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    byte temp = result[group + 32 + i];
+                    result[group + 32 + i] = result[group + 64 + i];
+                    result[group + 64 + i] = temp;
+                }
+            }
+            return result;
+        }
+
         // TODO: These should not be public.
         public static byte[] deswizzle(uint width, uint height, uint depth, uint blkWidth, uint blkHeight, uint blkDepth, int roundPitch, uint bpp, uint tileMode, int blockHeightLog2, byte[] data)
         {
+            if (UseDesktopGobLayout && tileMode != 1)
+                data = SwapDesktopGobSectors(data);
+
             if (tileMode == 1)
                 return SwizzlePitchLinear(width, height, depth, blkWidth, blkHeight, blkDepth, roundPitch, bpp, blockHeightLog2, data, true, 0);
             else
@@ -345,8 +371,9 @@ namespace Toolbox.Library
         {
             if (tileMode == 1)
                 return SwizzlePitchLinear(width, height, depth, blkWidth, blkHeight, blkDepth, roundPitch, bpp, blockHeightLog2, data, false, size);
-            else
-                return SwizzleDeswizzleBlockLinear(width, height, depth, blkWidth, blkHeight, blkDepth, bpp, blockHeightLog2, data, false, size);
+
+            byte[] swizzled = SwizzleDeswizzleBlockLinear(width, height, depth, blkWidth, blkHeight, blkDepth, bpp, blockHeightLog2, data, false, size);
+            return UseDesktopGobLayout ? SwapDesktopGobSectors(swizzled) : swizzled;
         }
 
 

@@ -103,6 +103,10 @@
             this.totkGamePathTB = new Toolbox.Library.Forms.STTextBox();
             this.stLabel18 = new Toolbox.Library.Forms.STLabel();
             this.pathPokemonSwShTB = new Toolbox.Library.Forms.STTextBox();
+            this.stLabelRaiders = new Toolbox.Library.Forms.STLabel();
+            this.raidersGamePathTB = new Toolbox.Library.Forms.STTextBox();
+            this.stLabelMkWorld = new Toolbox.Library.Forms.STLabel();
+            this.mkWorldGamePathTB = new Toolbox.Library.Forms.STTextBox();
             this.stContextMenuStrip1 = new Toolbox.Library.Forms.STContextMenuStrip(this.components);
             this.clearSettingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.stLabel13 = new Toolbox.Library.Forms.STLabel();
@@ -1147,6 +1151,10 @@
             //
             this.tabPage3.Controls.Add(this.stLabel19);
             this.tabPage3.Controls.Add(this.totkGamePathTB);
+            this.tabPage3.Controls.Add(this.stLabelRaiders);
+            this.tabPage3.Controls.Add(this.raidersGamePathTB);
+            this.tabPage3.Controls.Add(this.stLabelMkWorld);
+            this.tabPage3.Controls.Add(this.mkWorldGamePathTB);
             this.tabPage3.Controls.Add(this.stLabel18);
             this.tabPage3.Controls.Add(this.pathPokemonSwShTB);
             this.tabPage3.Controls.Add(this.stLabel13);
@@ -1211,6 +1219,50 @@
             this.pathPokemonSwShTB.TabIndex = 10;
             this.pathPokemonSwShTB.Click += new System.EventHandler(this.pathPokemonSwShTB_Click);
             this.pathPokemonSwShTB.TextChanged += new System.EventHandler(this.pathPokemonSwShTB_TextChanged);
+            //
+            // stLabelRaiders
+            //
+            this.stLabelRaiders.AutoSize = true;
+            this.stLabelRaiders.Location = new System.Drawing.Point(8, 246);
+            this.stLabelRaiders.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.stLabelRaiders.Name = "stLabelRaiders";
+            this.stLabelRaiders.Size = new System.Drawing.Size(148, 16);
+            this.stLabelRaiders.TabIndex = 13;
+            this.stLabelRaiders.Text = "Splatoon Raiders";
+            //
+            // raidersGamePathTB
+            //
+            this.raidersGamePathTB.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.raidersGamePathTB.ContextMenuStrip = this.stContextMenuStrip1;
+            this.raidersGamePathTB.Location = new System.Drawing.Point(171, 244);
+            this.raidersGamePathTB.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.raidersGamePathTB.Name = "raidersGamePathTB";
+            this.raidersGamePathTB.Size = new System.Drawing.Size(343, 22);
+            this.raidersGamePathTB.TabIndex = 12;
+            this.raidersGamePathTB.Click += new System.EventHandler(this.raidersGamePathTB_Click);
+            this.raidersGamePathTB.TextChanged += new System.EventHandler(this.raidersGamePathTB_TextChanged);
+            //
+            // stLabelMkWorld
+            //
+            this.stLabelMkWorld.AutoSize = true;
+            this.stLabelMkWorld.Location = new System.Drawing.Point(8, 278);
+            this.stLabelMkWorld.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.stLabelMkWorld.Name = "stLabelMkWorld";
+            this.stLabelMkWorld.Size = new System.Drawing.Size(148, 16);
+            this.stLabelMkWorld.TabIndex = 15;
+            this.stLabelMkWorld.Text = "Mario Kart World";
+            //
+            // mkWorldGamePathTB
+            //
+            this.mkWorldGamePathTB.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.mkWorldGamePathTB.ContextMenuStrip = this.stContextMenuStrip1;
+            this.mkWorldGamePathTB.Location = new System.Drawing.Point(171, 276);
+            this.mkWorldGamePathTB.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.mkWorldGamePathTB.Name = "mkWorldGamePathTB";
+            this.mkWorldGamePathTB.Size = new System.Drawing.Size(343, 22);
+            this.mkWorldGamePathTB.TabIndex = 14;
+            this.mkWorldGamePathTB.Click += new System.EventHandler(this.mkWorldGamePathTB_Click);
+            this.mkWorldGamePathTB.TextChanged += new System.EventHandler(this.mkWorldGamePathTB_TextChanged);
             //
             // stContextMenuStrip1
             //
@@ -1623,6 +1675,10 @@
         private Library.Forms.STTextBox totkGamePathTB;
         private Library.Forms.STLabel stLabel18;
         private Library.Forms.STTextBox pathPokemonSwShTB;
+        private Library.Forms.STLabel stLabelRaiders;
+        private Library.Forms.STTextBox raidersGamePathTB;
+        private Library.Forms.STLabel stLabelMkWorld;
+        private Library.Forms.STTextBox mkWorldGamePathTB;
         private Library.Forms.STButton btnReset;
         private Library.Forms.STCheckBox chkViewportAxisLines;
         private Library.Forms.STCheckBox chkViewportGrid;

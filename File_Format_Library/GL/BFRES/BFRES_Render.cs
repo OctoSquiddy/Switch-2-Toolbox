@@ -423,15 +423,12 @@ namespace FirstPlugin
             }
             else
             {
-                if (bfres.HasTextures)
+                //The textures of the file itself come first. Other opened models can use the same names for other images.
+                foreach (var ownBntx in bfres.GetOwnBntxContainers())
                 {
-                    var bntx = bfres.GetBNTX;
-                    if (bntx != null)
+                    if (ownBntx.Textures.ContainsKey(activeTex))
                     {
-                        if (bntx.Textures.ContainsKey(activeTex))
-                        {
-                            return BindBNTX(bntx, tex, shader, activeTex);
-                        }
+                        return BindBNTX(ownBntx, tex, shader, activeTex);
                     }
                 }
 

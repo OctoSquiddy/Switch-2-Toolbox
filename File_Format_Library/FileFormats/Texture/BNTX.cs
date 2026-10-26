@@ -287,6 +287,23 @@ namespace FirstPlugin
         public PropertieGridData prop;
         public BntxFile BinaryTexFile;
 
+        /// <summary>
+        /// Textures loaded from other files next to the model (like the Tex folder of Switch 2 games).
+        /// They are shown in the tree but never saved into the bfres.
+        /// </summary>
+        public bool IsExternalContainer;
+
+        /// <summary>
+        /// Switch 2 bntx files (version 0.4.1.x) use the desktop GPU layout inside the GOBs.
+        /// </summary>
+        public bool IsDesktopSwizzle
+        {
+            get
+            {
+                return TextureData.IsDesktopSwizzleFile(BinaryTexFile);
+            }
+        }
+
         public bool CanReplace;
         public bool AllGLInitialized
         {
@@ -625,6 +642,31 @@ namespace FirstPlugin
         private void ImportTextureAction(object sender, EventArgs args) {
             ImportTexture();
         }
+        /// <summary>
+        /// Adds the textures of a bntx file to this container without taking over the file (used for textures stored next to the model).
+        /// </summary>
+        public int AddExternalTextures(byte[] bntxData)
+        {
+            var file = new BntxFile(new MemoryStream(bntxData));
+            int added = 0;
+            foreach (Texture tex in file.Textures)
+            {
+                if (Textures.ContainsKey(tex.Name))
+                    continue;
+
+                TextureData texData = new TextureData(tex, file);
+                texData.SourceFile = file;
+                texData.ParentBNTX = this;
+
+                Nodes.Add(texData);
+                Textures.Add(tex.Name, texData);
+                added++;
+            }
+            file.Textures.Clear();
+            file.TextureDict.Clear();
+            return added;
+        }
+
         public List<TextureData> ImportTexture()
         {
             OpenFileDialog ofd = new OpenFileDialog();
@@ -706,6 +748,9 @@ namespace FirstPlugin
             List<TextureData> textures = new List<TextureData>();
 
             Cursor.Current = Cursors.WaitCursor;
+            TegraX1Swizzle.UseDesktopGobLayout = IsDesktopSwizzle;
+            try
+            {
             foreach (var setting in settings)
             {
                 if (setting.GenerateMipmaps && !setting.IsFinishedCompressing)
@@ -741,6 +786,11 @@ namespace FirstPlugin
                 {
                     MessageBox.Show("Something went wrong???");
                 }
+            }
+            }
+            finally
+            {
+                TegraX1Swizzle.UseDesktopGobLayout = false;
             }
             return textures;
         }
@@ -1244,6 +1294,36 @@ namespace FirstPlugin
 
         public Texture Texture;
 
+        /// <summary>
+        /// The bntx file the texture was read from when it is shown in another container (external Switch 2 textures).
+        /// The swizzle layout and platform are taken from this file instead of the parent container.
+        /// </summary>
+        public BntxFile SourceFile;
+
+        private BntxFile FormatSourceFile
+        {
+            get
+            {
+                if (SourceFile != null)
+                    return SourceFile;
+                if (ParentBNTX != null && ParentBNTX is BNTX)
+                    return ParentBNTX.BinaryTexFile;
+                return null;
+            }
+        }
+
+        //Switch 2 bntx files (version 0.4.1.x) use the desktop GPU layout inside the GOBs
+        public static bool IsDesktopSwizzleFile(BntxFile file)
+        {
+            return file != null && file.VersionMajor2 >= 4 && file.VersionMinor >= 1;
+        }
+
+        //Switch 1 uses "NX  ", Switch 2 files use "Ounc"
+        public static bool IsNXPlatform(BntxFile file)
+        {
+            return file != null && (file.PlatformTarget == "NX  " || file.PlatformTarget == "Ounc");
+        }
+
         public TextureData()
         {
             ImageKey = "Texture";
@@ -1708,8 +1788,17 @@ namespace FirstPlugin
             {
                 Texture.TextureData[ArrayLevel].Clear(); //Clear previous mip maps
 
-                var mipmaps = TextureImporterSettings.SwizzleSurfaceMipMaps(Texture,
-                      GenerateMipsAndCompress(bitmap, MipCount, Format), MipCount);
+                TegraX1Swizzle.UseDesktopGobLayout = IsDesktopSwizzleFile(FormatSourceFile);
+                List<byte[]> mipmaps;
+                try
+                {
+                    mipmaps = TextureImporterSettings.SwizzleSurfaceMipMaps(Texture,
+                          GenerateMipsAndCompress(bitmap, MipCount, Format), MipCount);
+                }
+                finally
+                {
+                    TegraX1Swizzle.UseDesktopGobLayout = false;
+                }
 
                 Texture.TextureData[ArrayLevel] = mipmaps;
 
@@ -1729,9 +1818,10 @@ namespace FirstPlugin
         public override byte[] GetImageData(int ArrayLevel = 0, int MipLevel = 0, int DepthLevel = 0)
         {
             int target = 1;
-            if (ParentBNTX != null && ParentBNTX is BNTX && ParentBNTX.BinaryTexFile != null)
+            BntxFile formatSource = FormatSourceFile;
+            if (formatSource != null)
             {
-                bool IsNX = ParentBNTX.BinaryTexFile.PlatformTarget == "NX  ";
+                bool IsNX = IsNXPlatform(formatSource);
                 if (!IsNX)
                     target = 0;
             }
@@ -1772,7 +1862,16 @@ namespace FirstPlugin
                                 blockHeightShift += 1;
 
                             Console.WriteLine($"{width} {height} {depth} {blkWidth} {blkHeight} {blkDepth} {target} {bpp} {Texture.TileMode} {(int)Math.Max(0, Texture.BlockHeightLog2 - blockHeightShift)} {Texture.TextureData[arrayLevel][mipLevel].Length}");
-                            byte[] result = TegraX1Swizzle.deswizzle(width, height, depth, blkWidth, blkHeight, blkDepth, target, bpp, (uint)Texture.TileMode, (int)Math.Max(0, Texture.BlockHeightLog2 - blockHeightShift), Texture.TextureData[arrayLevel][mipLevel]);
+                            byte[] result;
+                            TegraX1Swizzle.UseDesktopGobLayout = IsDesktopSwizzleFile(formatSource);
+                            try
+                            {
+                                result = TegraX1Swizzle.deswizzle(width, height, depth, blkWidth, blkHeight, blkDepth, target, bpp, (uint)Texture.TileMode, (int)Math.Max(0, Texture.BlockHeightLog2 - blockHeightShift), Texture.TextureData[arrayLevel][mipLevel]);
+                            }
+                            finally
+                            {
+                                TegraX1Swizzle.UseDesktopGobLayout = false;
+                            }
                             //Create a copy and use that to remove uneeded data
                             byte[] result_ = new byte[size];
                             Array.Copy(result, 0, result_, 0, size);

@@ -260,6 +260,26 @@ namespace Bfres.Structs
             ((BFRES)Parent.Parent.Parent.Parent).LoadEditors(this);
         }
 
+        /// <summary>
+        /// Version 10+ (Switch 2) files index rigid bones after the smooth matrices.
+        /// Those ids are not in the skeleton matrix list, but in the shape skin bone list.
+        /// </summary>
+        public bool IsRigidMatrixId(FMDL model, int matrixId)
+        {
+            var nodes = model.Skeleton.Node_Array;
+            return nodes != null && matrixId >= nodes.Length && matrixId - nodes.Length < BoneIndices.Count;
+        }
+
+        public int GetBoneIndexFromMatrixId(FMDL model, int matrixId)
+        {
+            var nodes = model.Skeleton.Node_Array;
+            if (nodes != null && matrixId >= 0 && matrixId < nodes.Length)
+                return nodes[matrixId];
+            if (IsRigidMatrixId(model, matrixId))
+                return BoneIndices[matrixId - nodes.Length];
+            return BoneIndex;
+        }
+
         public void TransformBindedBone(string BoneName)
         {
             if (Parent == null || VertexSkinCount > 1) return;
@@ -297,7 +317,7 @@ namespace Bfres.Structs
                 {
                     int boneIndex = BoneIndex;
                     if (vertices[v].boneIds.Count > 0)
-                        boneIndex = model.Skeleton.Node_Array[vertices[v].boneIds[0]];
+                        boneIndex = GetBoneIndexFromMatrixId(model, vertices[v].boneIds[0]);
 
                     Matrix4 SingleBindLocal = model.Skeleton.bones[boneIndex].Transform;
 

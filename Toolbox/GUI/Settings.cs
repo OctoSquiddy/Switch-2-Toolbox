@@ -80,6 +80,8 @@ namespace Toolbox
             botwGamePathTB.Text = Runtime.BotwGamePath;
             totkGamePathTB.Text = Runtime.TotkGamePath;
             tpGamePathTB.Text = Runtime.TpGamePath;
+            raidersGamePathTB.Text = Runtime.SplatoonRaidersGamePath;
+            mkWorldGamePathTB.Text = Runtime.MarioKartWorldGamePath;
             modelLoadArchive.Checked = Runtime.ObjectEditor.OpenModelsOnOpen;
             specularCubemapPathTB.Text = System.IO.Path.GetFileName(Runtime.PBR.SpecularCubeMapPath);
             diffuseCubemapPathTB.Text = System.IO.Path.GetFileName(Runtime.PBR.DiffuseCubeMapPath);
@@ -605,6 +607,14 @@ namespace Toolbox
                             pathPokemonSwShTB.Text = "";
                             Runtime.PkSwShGamePath = "";
                             break;
+                        case "raidersGamePathTB":
+                            raidersGamePathTB.Text = "";
+                            Runtime.SplatoonRaidersGamePath = "";
+                            break;
+                        case "mkWorldGamePathTB":
+                            mkWorldGamePathTB.Text = "";
+                            Runtime.MarioKartWorldGamePath = "";
+                            break;
                     }
                 }
             }
@@ -720,6 +730,50 @@ namespace Toolbox
                 pathPokemonSwShTB.Text = sfd.SelectedPath;
                 Runtime.PkSwShGamePath = pathPokemonSwShTB.Text;
             }
+        }
+
+        private void raidersGamePathTB_Click(object sender, EventArgs e)
+        {
+            FolderSelectDialog sfd = new FolderSelectDialog();
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                if (!IsValidRaidersDirectory(sfd.SelectedPath))
+                    throw new Exception("Invalid path choosen. Select the romfs folder of Splatoon Raiders. It needs a Tex folder (next to Model)!");
+
+                raidersGamePathTB.Text = sfd.SelectedPath;
+                Runtime.SplatoonRaidersGamePath = raidersGamePathTB.Text;
+            }
+        }
+
+        private void raidersGamePathTB_TextChanged(object sender, EventArgs e)
+        {
+            Runtime.SplatoonRaidersGamePath = raidersGamePathTB.Text;
+        }
+
+        private void mkWorldGamePathTB_Click(object sender, EventArgs e)
+        {
+            FolderSelectDialog sfd = new FolderSelectDialog();
+            if (sfd.ShowDialog() == DialogResult.OK)
+            {
+                if (!IsValidRaidersDirectory(sfd.SelectedPath))
+                    throw new Exception("Invalid path choosen. Select the romfs folder of Mario Kart World. It needs a Tex folder (next to Model)!");
+
+                mkWorldGamePathTB.Text = sfd.SelectedPath;
+                Runtime.MarioKartWorldGamePath = mkWorldGamePathTB.Text;
+            }
+        }
+
+        private void mkWorldGamePathTB_TextChanged(object sender, EventArgs e)
+        {
+            Runtime.MarioKartWorldGamePath = mkWorldGamePathTB.Text;
+        }
+
+        private bool IsValidRaidersDirectory(string GamePath)
+        {
+            //Textures are stored as Tex/<Package>.<Texture>.bntx.zs. The path can be the romfs folder or the Tex folder itself
+            return System.IO.Directory.Exists(System.IO.Path.Combine(GamePath, "Tex")) ||
+                   System.IO.Directory.Exists(System.IO.Path.Combine(GamePath, "romfs", "Tex")) ||
+                   System.IO.Path.GetFileName(GamePath.TrimEnd('\\', '/')).Equals("Tex", StringComparison.InvariantCultureIgnoreCase);
         }
 
         private bool IsValidPokemonSwShDirectory(string GamePath)

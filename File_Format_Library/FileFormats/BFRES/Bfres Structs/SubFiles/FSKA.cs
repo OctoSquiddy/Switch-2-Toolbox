@@ -521,8 +521,27 @@ namespace Bfres.Structs
             ska.Loop = anim.CanLoop;
             ska.Baked = false;
 
-            for (int b = 0; b < anim.Bones.Count; b++)
-                ska.BoneAnims.Add(GenericBoneAnimToBfresBoneAnim(anim.Bones[b], b));
+            //Switch 2 (version 10) files store the curves in a different format
+            bool v10 = false;
+            try
+            {
+                var resFile = GetResFile();
+                v10 = resFile != null && resFile.VersionMajor2 >= 10;
+            }
+            catch
+            {
+            }
+
+            CreateV10Curves = v10;
+            try
+            {
+                for (int b = 0; b < anim.Bones.Count; b++)
+                    ska.BoneAnims.Add(GenericBoneAnimToBfresBoneAnim(anim.Bones[b], b));
+            }
+            finally
+            {
+                CreateV10Curves = false;
+            }
             
             ska.BakedSize = CalculateBakeSize(ska);
             ska.BindIndices = GenerateIndices(ska.BoneAnims.Count);
@@ -549,7 +568,7 @@ namespace Bfres.Structs
             boneBaseData.Scale = new Syroot.Maths.Vector3F(scax, scay, scaz);
             boneBaseData.Rotate = new Syroot.Maths.Vector4F(rotx, roty, rotz, rotw);
             boneAnim.BaseData = boneBaseData;
-            boneAnim.BeginBaseTranslate = 0;
+            boneAnim.BeginBaseTranslate = (byte)(CreateV10Curves ? 7 : 0);
             boneAnim.BeginTranslate = 6;
             boneAnim.BeginRotate = 3;
             boneAnim.Curves = new List<AnimCurve>();
@@ -710,10 +729,97 @@ namespace Bfres.Structs
             }
         }
 
+        [ThreadStatic]
+        private static bool CreateV10Curves;
+
+        //Switch 2 curves store a value and a slope for every key. Slopes are per frame.
+        //Keys on the same frame are allowed, the later one wins on that frame. That is used for different in and out slopes and for steps.
+        private static AnimCurve SetAnimationCurveV10(Animation.KeyGroup keyGroup, uint DataOffset)
+        {
+            var keys = keyGroup.Keys.OrderBy(x => x.Frame).ToList();
+
+            //The group type is what the viewer plays. Importers leave it on hermite and only set the type of the keys
+            //(without slopes for the types other than hermite).
+            var type = keyGroup.InterpolationType;
+            var firstKey = keyGroup.GetKeyFrame(0);
+            if (type == InterpolationType.HERMITE && firstKey.InterType != InterpolationType.HERMITE && keys.All(x => x.In == 0 && x.Out == -1))
+                type = firstKey.InterType;
+            var frames = new List<float>();
+            var values = new List<float>();
+            var slopes = new List<float>();
+
+            for (int k = 0; k < keys.Count; k++)
+            {
+                float frame = keys[k].Frame;
+                float value = keys[k].Value;
+                bool hasPrev = k > 0 && keys[k - 1].Frame < frame;
+                bool hasNext = k < keys.Count - 1 && keys[k + 1].Frame > frame;
+                float prevSlope = hasPrev ? (value - keys[k - 1].Value) / (frame - keys[k - 1].Frame) : 0;
+                float nextSlope = hasNext ? (keys[k + 1].Value - value) / (keys[k + 1].Frame - frame) : 0;
+
+                float inSlope, outSlope;
+                switch (type)
+                {
+                    case InterpolationType.HERMITE:
+                        inSlope = keys[k].In;
+                        outSlope = keys[k].Out;
+                        break;
+                    case InterpolationType.LINEAR:
+                        inSlope = hasPrev ? prevSlope : nextSlope;
+                        outSlope = hasNext ? nextSlope : prevSlope;
+                        break;
+                    default: //Step: hold the value until the next key
+                        inSlope = 0;
+                        outSlope = 0;
+                        if (hasPrev)
+                        {
+                            frames.Add(frame);
+                            values.Add(keys[k - 1].Value);
+                            slopes.Add(0);
+                        }
+                        break;
+                }
+
+                if (type != InterpolationType.STEP && type != InterpolationType.CONSTANT && hasPrev && hasNext && Math.Abs(inSlope - outSlope) > 0.0001f)
+                {
+                    frames.Add(frame);
+                    values.Add(value);
+                    slopes.Add(inSlope);
+                }
+
+                frames.Add(frame);
+                values.Add(value);
+                slopes.Add(outSlope);
+            }
+
+            if (frames.Count <= 1)
+                return null;
+
+            AnimCurve curve = new AnimCurve();
+            curve.AnimDataOffset = DataOffset;
+            curve.StartFrame = 0;
+            curve.EndFrame = frames.Max();
+
+            float maxFrame = frames.Max();
+            bool wholeFrames = frames.All(x => x == (float)Math.Floor(x));
+            if (wholeFrames && maxFrame <= 255)
+                curve.FrameType = AnimCurveFrameType.Byte;
+            else if (maxFrame < 1000)
+                curve.FrameType = AnimCurveFrameType.Decimal10x5;
+            else
+                curve.FrameType = AnimCurveFrameType.Single;
+
+            curve.SetHermiteKeys(frames.ToArray(), values.ToArray(), slopes.ToArray(), true);
+            return curve;
+        }
+
         private static AnimCurve SetAnimationCurve(Animation.KeyGroup keyGroup, uint DataOffset)
         {
             if (keyGroup.Keys.Count <= 1)
                 return null;
+
+            if (CreateV10Curves && keyGroup.GetKeyFrame(0).InterType != InterpolationType.STEPBOOL)
+                return SetAnimationCurveV10(keyGroup, DataOffset);
 
             AnimCurve curve = new AnimCurve();
             curve.Frames = new float[(int)keyGroup.Keys.Count];

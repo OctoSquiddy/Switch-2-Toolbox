@@ -1033,6 +1033,24 @@ namespace FirstPlugin
             }
         }
 
+        /// <summary>
+        /// The textures loaded from the Tex folder next to the model (Switch 2). Null if there are none.
+        /// </summary>
+        public BNTX ExternalTextureContainer;
+
+        /// <summary>
+        /// All bntx containers that belong to this file (embedded textures and external ones).
+        /// Textures are looked up here before the containers of other opened files.
+        /// </summary>
+        public IEnumerable<BNTX> GetOwnBntxContainers()
+        {
+            foreach (TreeNode node in Nodes)
+            {
+                if (node is BNTX)
+                    yield return (BNTX)node;
+            }
+        }
+
         public BNTX GetBNTX
         {
             get
@@ -1189,6 +1207,175 @@ namespace FirstPlugin
             if (PluginRuntime.UseSimpleBfresEditor)
                 LoadSimpleMode();
         }
+        private static Dictionary<string, Dictionary<string, string>> ExternalTextureIndexCache = new Dictionary<string, Dictionary<string, string>>(StringComparer.InvariantCultureIgnoreCase);
+
+        //Switch 2 games store textures as separate bntx files in a Tex folder next to the Model folder:
+        //Tex/<Package>.<TextureName>.bntx.zs. Load the ones the materials use so they show up with the model.
+        private void LoadExternalTextures()
+        {
+            try
+            {
+                if (IsWiiU || resFile == null || string.IsNullOrEmpty(FilePath))
+                    return;
+
+                string texDir = FindTexDirectory(FilePath);
+                if (texDir == null)
+                    return;
+
+                //Only the textures of this file count. Other opened models can use the same texture names for different images.
+                var existing = new HashSet<string>(StringComparer.InvariantCultureIgnoreCase);
+                foreach (var node in Nodes)
+                    if (node is BNTX)
+                        foreach (var name in ((BNTX)node).Textures.Keys)
+                            existing.Add(name);
+
+                var needed = new List<string>();
+                foreach (var model in resFile.Models)
+                    foreach (var material in model.Materials)
+                        if (material.TextureRefs != null)
+                            foreach (string name in material.TextureRefs)
+                                if (!string.IsNullOrEmpty(name) && !existing.Contains(name) && !needed.Contains(name))
+                                    needed.Add(name);
+
+                if (needed.Count == 0)
+                    return;
+
+                string fileName = Path.GetFileName(FilePath);
+                int dot = fileName.IndexOf('.');
+                string package = dot > 0 ? fileName.Substring(0, dot) : fileName;
+
+                BNTX external = null;
+                int loaded = 0;
+                foreach (string name in needed)
+                {
+                    string path = FindExternalTexture(texDir, package, name);
+                    if (path == null)
+                        continue;
+
+                    try
+                    {
+                        byte[] data = File.ReadAllBytes(path);
+                        if (path.EndsWith(".zs", StringComparison.InvariantCultureIgnoreCase))
+                            data = Zstb.SDecompress(data);
+
+                        if (external == null)
+                        {
+                            external = new BNTX() { ImageKey = "folder", SelectedImageKey = "folder", Text = "External Textures" };
+                            external.IFileInfo = new IFileInfo();
+                            external.FileName = "External Textures";
+                            external.IsExternalContainer = true;
+                            external.Load(new MemoryStream(BNTX.CreateNewBNTX("External Textures")));
+                        }
+                        loaded += external.AddExternalTextures(data);
+                    }
+                    catch (Exception ex)
+                    {
+                        STConsole.WriteLine($"Failed to load external texture {name} from {path}: {ex.Message}", System.Drawing.Color.Red);
+                    }
+                }
+
+                if (external != null)
+                {
+                    //Added after the Textures folder so that stays the main texture container
+                    Nodes.Add(external);
+                    ExternalTextureContainer = external;
+                    STConsole.WriteLine($"Loaded {loaded} of {needed.Count} external textures from {texDir}");
+                }
+            }
+            catch (Exception ex)
+            {
+                STConsole.WriteLine($"Failed to load external textures: {ex.Message}", System.Drawing.Color.Red);
+            }
+        }
+
+        private static string FindTexDirectory(string filePath)
+        {
+            //A Tex folder next to the Model folder of the opened file comes first (works for every Switch 2 game dump)
+            string dir = Path.GetDirectoryName(filePath);
+            for (int i = 0; i < 4 && !string.IsNullOrEmpty(dir); i++)
+            {
+                string tex = Path.Combine(dir, "Tex");
+                if (Directory.Exists(tex))
+                    return tex;
+                dir = Path.GetDirectoryName(dir);
+            }
+
+            //Otherwise the game paths from the settings (Settings > Paths > Splatoon Raiders / Mario Kart World).
+            //The one that has the textures of this file wins, the Raiders path comes first
+            string[] gamePaths = new string[] { Runtime.SplatoonRaidersGamePath, Runtime.MarioKartWorldGamePath };
+            string fileName = Path.GetFileName(filePath);
+            string package = fileName.IndexOf('.') > 0 ? fileName.Substring(0, fileName.IndexOf('.')) : fileName;
+            string firstFound = null;
+            foreach (string gamePath in gamePaths)
+            {
+                if (string.IsNullOrWhiteSpace(gamePath))
+                    continue;
+
+                foreach (string candidate in new string[] { Path.Combine(gamePath, "Tex"), Path.Combine(gamePath, "romfs", "Tex"), gamePath })
+                {
+                    if (!Path.GetFileName(candidate.TrimEnd('\\', '/')).Equals("Tex", StringComparison.InvariantCultureIgnoreCase) || !Directory.Exists(candidate))
+                        continue;
+
+                    if (firstFound == null)
+                        firstFound = candidate;
+
+                    //Prefer the game whose Model folder (next to Tex) contains this file name
+                    string modelDir = Path.Combine(Path.GetDirectoryName(candidate.TrimEnd('\\', '/')), "Model");
+                    if (File.Exists(Path.Combine(modelDir, fileName)) || File.Exists(Path.Combine(modelDir, fileName + ".zs")) ||
+                        File.Exists(Path.Combine(modelDir, package + "." + package + ".bfres.zs")))
+                        return candidate;
+                    break;
+                }
+            }
+            return firstFound;
+        }
+
+        private static string FindExternalTexture(string texDir, string package, string name)
+        {
+            foreach (string extension in new string[] { ".bntx.zs", ".bntx" })
+            {
+                string path = Path.Combine(texDir, $"{package}.{name}{extension}");
+                if (File.Exists(path))
+                    return path;
+
+                //Mario Kart World: Tex/<TextureName>.bntx.zs without a package prefix
+                path = Path.Combine(texDir, $"{name}{extension}");
+                if (File.Exists(path))
+                    return path;
+            }
+
+            //The texture can belong to another package. Search all of them by texture name
+            Dictionary<string, string> index;
+            lock (ExternalTextureIndexCache)
+            {
+                if (!ExternalTextureIndexCache.TryGetValue(texDir, out index))
+                {
+                    index = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
+                    foreach (string file in Directory.EnumerateFiles(texDir))
+                    {
+                        string fileName = Path.GetFileName(file);
+                        if (fileName.EndsWith(".zs", StringComparison.InvariantCultureIgnoreCase))
+                            fileName = fileName.Substring(0, fileName.Length - 3);
+                        if (!fileName.EndsWith(".bntx", StringComparison.InvariantCultureIgnoreCase))
+                            continue;
+
+                        fileName = fileName.Substring(0, fileName.Length - 5);
+                        int dotIndex = fileName.IndexOf('.');
+                        if (dotIndex < 0)
+                            continue;
+
+                        string textureName = fileName.Substring(dotIndex + 1);
+                        if (!index.ContainsKey(textureName))
+                            index.Add(textureName, file);
+                    }
+                    ExternalTextureIndexCache.Add(texDir, index);
+                }
+            }
+
+            string found;
+            return index.TryGetValue(name, out found) ? found : null;
+        }
+
         public void LoadFile(ResFile res)
         {
             resFile = res;
@@ -1222,6 +1409,8 @@ namespace FirstPlugin
                     modelFolder.AddNode(fmdl);
                 }
             }
+            LoadExternalTextures();
+
             if (resFile.SkeletalAnims.Count > 0)
             {
                 var group = new BFRESGroupNode(BRESGroupType.SkeletalAnim);
@@ -1570,7 +1759,7 @@ namespace FirstPlugin
                     foreach (var animGroup in node.Nodes)
                         SaveBfresSwitchGroup((BFRESGroupNode)animGroup, resFile);
                 }
-                if (node is BNTX)
+                if (node is BNTX && !((BNTX)node).IsExternalContainer)
                 {
                     if (SettingRemoveUnusedTextures)
                         RemoveUnusedTextures((BNTX)node);

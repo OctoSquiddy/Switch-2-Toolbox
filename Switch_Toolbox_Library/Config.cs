@@ -191,6 +191,12 @@ namespace Toolbox.Library
                     case "PkSwShGamePath":
                         Runtime.PkSwShGamePath = node.InnerText;
                         break;
+                    case "SplatoonRaidersGamePath":
+                        Runtime.SplatoonRaidersGamePath = node.InnerText;
+                        break;
+                    case "MarioKartWorldGamePath":
+                        Runtime.MarioKartWorldGamePath = node.InnerText;
+                        break;
                     case "BotwGamePath":
                         Runtime.BotwGamePath = node.InnerText;
                         break;
@@ -537,6 +543,8 @@ namespace Toolbox.Library
             PathsNode.AppendChild(createNode(doc, "SpecularCubeMapPath", Runtime.PBR.SpecularCubeMapPath.ToString()));
             PathsNode.AppendChild(createNode(doc, "DiffuseCubeMapPath", Runtime.PBR.DiffuseCubeMapPath.ToString()));
             PathsNode.AppendChild(createNode(doc, "PkSwShGamePath", Runtime.PkSwShGamePath.ToString()));
+            PathsNode.AppendChild(createNode(doc, "SplatoonRaidersGamePath", Runtime.SplatoonRaidersGamePath.ToString()));
+            PathsNode.AppendChild(createNode(doc, "MarioKartWorldGamePath", Runtime.MarioKartWorldGamePath.ToString()));
         }
 
         private static void AppendSwitchKeyPathSettings(XmlDocument doc, XmlNode parentNode)

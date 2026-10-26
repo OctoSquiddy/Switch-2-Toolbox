@@ -414,12 +414,18 @@ namespace FirstPlugin
                 if (fshp.VertexSkinCount == 1)
                 {
                     int boneIndex = fshp.BoneIndex;
+                    bool isRigidMatrix = false;
                     if (v.boneIds.Count > 0)
-                        boneIndex = model.Skeleton.Node_Array[v.boneIds[0]];
+                    {
+                        //Version 10+ (Switch 2) stores rigid bones after the smooth matrices.
+                        //The index goes into the shape's skin bone list instead of the matrix list
+                        isRigidMatrix = fshp.IsRigidMatrixId(model, v.boneIds[0]);
+                        boneIndex = fshp.GetBoneIndexFromMatrixId(model, v.boneIds[0]);
+                    }
 
                     //Check if the bones are a rigid type
                     //In game it seems to not transform if they are not rigid
-                    if (model.Skeleton.bones[boneIndex].RigidMatrixIndex != -1)
+                    if (isRigidMatrix || model.Skeleton.bones[boneIndex].RigidMatrixIndex != -1)
                     {
                         Matrix4 sb = model.Skeleton.bones[boneIndex].Transform;
                         v.pos = Vector3.TransformPosition(v.pos, sb);

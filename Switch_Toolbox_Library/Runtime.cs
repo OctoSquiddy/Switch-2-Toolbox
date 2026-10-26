@@ -32,6 +32,8 @@ namespace Toolbox.Library
         }
 
         public static string PkSwShGamePath = "";
+        public static string SplatoonRaidersGamePath = "";
+        public static string MarioKartWorldGamePath = "";
         public static string Mk8GamePath = "";
         public static string Mk8dGamePath = "";
         public static string SmoGamePath = "";
